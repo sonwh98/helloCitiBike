@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hello CitiBike</string>
+    <string name="api_key">AIzaSyC_5tx2-zL9QM1ARFMgRoN6AXT-IN2dFy8</string>
+</resources>
