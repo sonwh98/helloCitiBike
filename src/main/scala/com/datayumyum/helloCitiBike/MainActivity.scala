@@ -6,8 +6,9 @@ import com.google.android.gms.common.{GooglePlayServicesClient, ConnectionResult
 import android.util.Log
 import android.support.v4.app.FragmentActivity
 import android.location.Location
-import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.{BitmapDescriptorFactory, MarkerOptions, LatLng}
 import com.google.android.gms.location.LocationClient
+import android.graphics.Bitmap
 
 class MainActivity extends FragmentActivity {
   val TAG = "com.datayumyum.helloCitiBike.MainActivity"
@@ -30,6 +31,15 @@ class MainActivity extends FragmentActivity {
     val cameraUpdate: CameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 15)
     val map = getMap()
     map.animateCamera(cameraUpdate);
+  }
+
+  def addMarker() {
+    val location = locationClient.getLastLocation()
+    val xy = new LatLng(location.getLatitude(), location.getLongitude())
+    val map = getMap()
+    val bikeIcon = BitmapDescriptorFactory.fromResource(R.drawable.bike)
+
+    map.addMarker(new MarkerOptions().position(xy).title("hello world").icon(bikeIcon))
   }
 
   def getMap(): GoogleMap = {
@@ -59,6 +69,7 @@ class MainActivity extends FragmentActivity {
     override def onConnected(bundle: Bundle): Unit = {
       Log.d(TAG, f"onConnected")
       zoomTo(locationClient.getLastLocation())
+      addMarker()
     }
   }
 
