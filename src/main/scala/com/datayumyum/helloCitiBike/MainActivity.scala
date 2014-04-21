@@ -8,7 +8,6 @@ import android.support.v4.app.FragmentActivity
 import android.location.Location
 import com.google.android.gms.maps.model.{BitmapDescriptorFactory, MarkerOptions, LatLng}
 import com.google.android.gms.location.LocationClient
-import android.graphics.Bitmap
 
 class MainActivity extends FragmentActivity {
   val TAG = "com.datayumyum.helloCitiBike.MainActivity"
@@ -59,11 +58,11 @@ class MainActivity extends FragmentActivity {
     val TAG = "com.datayumyum.helloCitiBike.GooglePlayCallbacks"
 
     override def onConnectionFailed(result: ConnectionResult): Unit = {
-      Log.d(TAG, f"onConnectionFailed")
+      Log.w(TAG, f"onConnectionFailed")
     }
 
     override def onDisconnected(): Unit = {
-      Log.d(TAG, f"onDisconnected")
+      Log.w(TAG, f"onDisconnected")
     }
 
     override def onConnected(bundle: Bundle): Unit = {
