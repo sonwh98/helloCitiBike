@@ -6,9 +6,8 @@ import com.google.android.gms.common.{GooglePlayServicesClient, ConnectionResult
 import android.util.Log
 import android.support.v4.app.FragmentActivity
 import android.location.Location
-import com.google.android.gms.maps.model.{BitmapDescriptorFactory, MarkerOptions, LatLng}
+import com.google.android.gms.maps.model.{BitmapDescriptor, BitmapDescriptorFactory, MarkerOptions, LatLng}
 import com.google.android.gms.location.LocationClient
-import scala.util.parsing.json.JSON
 
 class MainActivity extends FragmentActivity {
   val TAG = "com.datayumyum.helloCitiBike.MainActivity"
@@ -32,11 +31,9 @@ class MainActivity extends FragmentActivity {
     map.animateCamera(cameraUpdate)
   }
 
-  def addMarker(xy: LatLng) {
+  def addMarker(xy: LatLng, icon: BitmapDescriptor, title: String) {
     val map = getMap()
-    val bikeIcon = BitmapDescriptorFactory.fromResource(R.drawable.bike)
-
-    map.addMarker(new MarkerOptions().position(xy).title("hello world").icon(bikeIcon))
+    map.addMarker(new MarkerOptions().position(xy).title(title).icon(icon))
   }
 
   def getMap(): GoogleMap = {
@@ -68,30 +65,32 @@ class MainActivity extends FragmentActivity {
       val lastLocation: Location = locationClient.getLastLocation()
       val xy = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude())
       zoomTo(xy)
-      addMarker(xy)
+      val helloKittyBike = BitmapDescriptorFactory.fromResource(R.drawable.hellobike_me)
+      addMarker(xy, helloKittyBike, "You are Here")
       addStations()
     }
 
     def addStations() {
       thread {
+        import com.cedarsoftware.util.io.{JsonObject, JsonReader}
+        import scala.collection.JavaConversions._
         val jsonStr = scala.io.Source.fromURL("http://appservices.citibikenyc.com/data2/stations.php").getLines.mkString("\n")
-        val jsonAST = JSON.parseFull(jsonStr)
-        val parsedMap: Map[String, List[Map[String, Any]]] = jsonAST.get.asInstanceOf[Map[String, List[Map[String, Any]]]]
-        val results: List[Map[String, Any]] = parsedMap("results")
+        val map = JsonReader.jsonToMaps(jsonStr)
+        val results = map.get("results").asInstanceOf[JsonObject[String, Any]]
+        val items = results.get("@items").asInstanceOf[Array[Any]]
+        val stations: List[Station] = items.map {
+          i =>
+            val jMap: java.util.Map[String, Any] = i.asInstanceOf[java.util.Map[String, Any]]
+            val map = jMap.toMap
+            Station(map("id").asInstanceOf[Long], map("label").asInstanceOf[String], map("latitude").asInstanceOf[Double], map("longitude").asInstanceOf[Double],
+              map("availableBikes").asInstanceOf[Long], map("availableDocks").asInstanceOf[Long])
+        }.toList
 
-        val stations: List[Station] = results.map {
-          stationMap =>
-            Station(stationMap("id").asInstanceOf[Double].toInt,
-              stationMap("label").asInstanceOf[String],
-              stationMap("latitude").asInstanceOf[Double],
-              stationMap("longitude").asInstanceOf[Double],
-              stationMap("availableBikes").asInstanceOf[Double].toInt,
-              stationMap("availableDocks").asInstanceOf[Double].toInt)
-        }
         stations.foreach {
           station => val xy = new LatLng(station.latitude, station.longitude)
             uiThread {
-              addMarker(xy)
+              val bikeIcon = BitmapDescriptorFactory.fromResource(R.drawable.bike)
+              addMarker(xy, bikeIcon, f"${station.label}\nbikes:${station.availableBikes}\ndocks:${station.availableDocks}")
             }
         }
       }
@@ -111,5 +110,5 @@ class MainActivity extends FragmentActivity {
   })
 }
 
-
-case class Station(id: Int, label: String, latitude: Double, longitude: Double, availableBikes: Int, availableDocks: Int)
+case class Station(id: Long, label: String, latitude: Double, longitude: Double, availableBikes: Long,
+                   availableDocks: Long)
