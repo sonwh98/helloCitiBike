@@ -7,22 +7,46 @@ import android.util.Log
 import android.support.v4.app.FragmentActivity
 import android.location.Location
 import com.google.android.gms.maps.model.{BitmapDescriptor, BitmapDescriptorFactory, MarkerOptions, LatLng}
-import com.google.android.gms.location.LocationClient
+import com.google.android.gms.location.{LocationRequest, LocationListener, LocationClient}
+import android.widget.Toast
+import java.net.HttpURLConnection
+import scala.io.Source
 
 class MainActivity extends FragmentActivity {
   val TAG = "com.datayumyum.helloCitiBike.MainActivity"
   var locationClient: LocationClient = null
+  var mLocationRequest: LocationRequest = null
+  var stop = false
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main_activity)
 
-    def initializeLocationClient() {
+    def connectLocationClient() {
+      mLocationRequest = LocationRequest.create();
+      mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+      val MILLISECONDS_PER_SECOND = 1000
+      val UPDATE_INTERVAL_IN_SECONDS = 5
+      val FASTEST_INTERVAL_IN_SECONDS = 1
+
+      val UPDATE_INTERVAL = MILLISECONDS_PER_SECOND * UPDATE_INTERVAL_IN_SECONDS
+      val FASTEST_INTERVAL = MILLISECONDS_PER_SECOND * FASTEST_INTERVAL_IN_SECONDS;
+
+      mLocationRequest.setInterval(UPDATE_INTERVAL)
+      mLocationRequest.setFastestInterval(FASTEST_INTERVAL)
+
       locationClient = new LocationClient(MainActivity.this, GooglePlayCallbacks, GooglePlayCallbacks)
       locationClient.connect()
     }
 
-    initializeLocationClient()
+    connectLocationClient()
+  }
+
+  override def onBackPressed(): Unit = {
+    locationClient.unregisterConnectionCallbacks(GooglePlayCallbacks)
+    locationClient.unregisterConnectionFailedListener(GooglePlayCallbacks)
+    locationClient.removeLocationUpdates(LocationUpdater)
+    super.onBackPressed()
   }
 
   def zoomTo(latLng: LatLng): Unit = {
@@ -53,21 +77,24 @@ class MainActivity extends FragmentActivity {
     val TAG = "com.datayumyum.helloCitiBike.GooglePlayCallbacks"
 
     override def onConnectionFailed(result: ConnectionResult): Unit = {
-      Log.w(TAG, f"onConnectionFailed")
+      Log.i(TAG, f"onConnectionFailed")
+      Toast.makeText(MainActivity.this, "Connection failed. Please re-connect.", Toast.LENGTH_SHORT).show()
     }
 
     override def onDisconnected(): Unit = {
-      Log.w(TAG, f"onDisconnected")
+      Log.i(TAG, f"onDisconnected")
+      Toast.makeText(MainActivity.this, "Disconnected. Please re-connect.", Toast.LENGTH_SHORT).show()
     }
 
     override def onConnected(bundle: Bundle): Unit = {
       Log.d(TAG, f"onConnected")
+      Toast.makeText(MainActivity.this, "Connected", Toast.LENGTH_SHORT).show();
+
       val lastLocation: Location = locationClient.getLastLocation()
       val xy = new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude())
       zoomTo(xy)
-      val helloKittyBike = BitmapDescriptorFactory.fromResource(R.drawable.hellobike_me)
-      addMarker(xy, helloKittyBike, "You are Here")
       addStations()
+      locationClient.requestLocationUpdates(mLocationRequest, LocationUpdater)
     }
 
     def addStations() {
@@ -87,13 +114,34 @@ class MainActivity extends FragmentActivity {
         }.toList
 
         stations.foreach {
-          station => val xy = new LatLng(station.latitude, station.longitude)
+          station =>
+            val xy = new LatLng(station.latitude, station.longitude)
             uiThread {
               val bikeIcon = BitmapDescriptorFactory.fromResource(R.drawable.bike)
               addMarker(xy, bikeIcon, f"${station.label}\nbikes:${station.availableBikes}\ndocks:${station.availableDocks}")
             }
+
         }
       }
+    }
+  }
+
+  object LocationUpdater extends LocationListener {
+    val TAG = "com.datayumyum.helloCitiBike.LocationUpdater"
+
+    override def onLocationChanged(location: Location): Unit = {
+      thread {
+        Log.i(TAG, f"location=${location.getLatitude},${location.getLongitude}")
+        val x = location.getLatitude()
+        val y = location.getLongitude()
+        val trackURL: String = f"http://192.168.0.100:3000/?x=${x}&y=${y}"
+        val url = new java.net.URL(trackURL)
+        val httpConnection = url.openConnection().asInstanceOf[HttpURLConnection]
+        val result = Source.fromInputStream(httpConnection.getInputStream).mkString
+        Log.i(TAG, f"${trackURL} result=${result}}")
+        httpConnection.disconnect()
+      }
+
     }
   }
 
