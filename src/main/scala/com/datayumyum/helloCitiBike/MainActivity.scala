@@ -134,7 +134,7 @@ class MainActivity extends FragmentActivity {
         Log.i(TAG, f"location=${location.getLatitude},${location.getLongitude}")
         val x = location.getLatitude()
         val y = location.getLongitude()
-        val trackURL: String = f"http://192.168.0.100:3000/?x=${x}&y=${y}"
+        val trackURL: String = f"http://hive.kaicode.com:3000/setLocation?x=${x}&y=${y}"
         val url = new java.net.URL(trackURL)
         val httpConnection = url.openConnection().asInstanceOf[HttpURLConnection]
         val result = Source.fromInputStream(httpConnection.getInputStream).mkString
